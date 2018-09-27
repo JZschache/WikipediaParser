@@ -13,10 +13,15 @@ import org.xml.sax.SAXException;
 
 import akka.actor.AbstractActor;
 import akka.actor.Props;
+import akka.agent.Agent;
+import akka.dispatch.ExecutionContexts;
+import akka.dispatch.Mapper;
 import akka.actor.ActorRef;
 import akka.event.Logging;
 import akka.event.LoggingAdapter;
 import akka.japi.pf.ReceiveBuilder;
+import scala.concurrent.ExecutionContext;
+import wikipedia.Main;
 import wikipedia.model.WikipediaPage;
 
 
@@ -51,10 +56,18 @@ public class XMLManager extends AbstractActor {
 	private final LoggingAdapter log = Logging.getLogger(getContext().system(), this);
 	private final SAXParserFactory factory = SAXParserFactory.newInstance();
 	
+	ExecutionContext ec = ExecutionContexts.global();
+    Agent<Integer> xmlCounter = Agent.create(0, ec);
+	
 	public XMLManager(ActorRef neo4jActor, ActorRef mongoActor) {
 		receive(ReceiveBuilder
 				.match(Load.class, load -> {
-					log.info("Start loading file from: {}", load.fileName);
+					
+					String[] splits = load.fileName.split("p");
+					String lastPageString = splits[splits.length-1];
+					int lastPage = Integer.parseInt(lastPageString.substring(0, lastPageString.length() - 4));
+					int firstPage = Integer.parseInt(splits[splits.length-2]);
+					log.info("Start loading pages {} until {} from: {}", firstPage, lastPage, load.fileName);
 					try {
 			        	SAXParser parser = factory.newSAXParser();
 						InputStream stream = new URL(load.fileName).openStream();
@@ -62,7 +75,14 @@ public class XMLManager extends AbstractActor {
 						PageHandler pageHandler = new PageHandler(new PageProcessor() {
 				            @Override
 				            public void process(WikipediaPage page) {
-				            	log.info("Done parsing page: {}", page);
+				            	xmlCounter.send(new Mapper<Integer, Integer>() {
+				            		public Integer apply(Integer i) {
+				            			int idx = Integer.parseInt(page.getId());
+				            			if (i % Main.outputFreq == 0)
+						            		log.info("Done parsing {} of {} pages.", idx, lastPage);
+				            			return i + 1;
+				            		}				            		
+				            	});
 				            	neo4jActor.tell(new AddPage(page), self());
 				            	mongoActor.tell(new AddPage(page), self());
 				           }

@@ -131,5 +131,10 @@ public class PageHandler extends DefaultHandler {
     		}
     	}
     }
+    
+    @Override
+    public void endDocument() throws SAXException {
+    	
+    }
 
 }

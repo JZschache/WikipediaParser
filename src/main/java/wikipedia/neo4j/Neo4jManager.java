@@ -1,7 +1,9 @@
 package wikipedia.neo4j;
 
 import java.io.File;
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 import org.neo4j.graphdb.GraphDatabaseService;
@@ -15,9 +17,14 @@ import org.neo4j.graphdb.schema.Schema;
 
 import akka.actor.AbstractActor;
 import akka.actor.Props;
+import akka.agent.Agent;
+import akka.dispatch.ExecutionContexts;
+import akka.dispatch.Mapper;
 import akka.event.Logging;
 import akka.event.LoggingAdapter;
 import akka.japi.pf.ReceiveBuilder;
+import scala.concurrent.ExecutionContext;
+import wikipedia.Main;
 import wikipedia.model.WikipediaPage;
 import wikipedia.model.WikipediaRevision;
 import wikipedia.model.WikipediaUser;
@@ -40,7 +47,8 @@ public class Neo4jManager extends AbstractActor {
 	private Label revisionLabel = Label.label( "Revision" );
 	private Label userLabel = Label.label( "User" );
 	
-	private Map<String, Node> idMapping = new HashMap<String, Node>();
+	ExecutionContext ec = ExecutionContexts.global();
+    Agent<Integer> neo4jCounter = Agent.create(0, ec);
 	
 	public Neo4jManager() {
 		
@@ -70,9 +78,15 @@ public class Neo4jManager extends AbstractActor {
 		
 		receive(ReceiveBuilder
 				.match(AddPage.class, ap -> {
-					log.info("Done storing page: {}", ap.page.getId());
 					addWikipediaPage(ap.page);
-					log.info("Done storing page: {}", ap.page.getId());
+					neo4jCounter.send(new Mapper<Integer, Integer>() {
+	            		public Integer apply(Integer i) {
+	            			int idx = Integer.parseInt(ap.page.getId());
+	            			if (i % Main.outputFreq == 0)
+			            		log.info("Done storing page {}.", idx);
+	            			return i + 1;
+	            		}				            		
+	            	});
 				})
 				.matchAny(o -> log.info("received unknown message"))
 				.build());
@@ -87,6 +101,8 @@ public class Neo4jManager extends AbstractActor {
 			pageNode.setProperty("title", page.getTitle());
 			
 			Node parentNode = null;
+			
+			Map<Node, String> lonelyChildren = new HashMap<Node,String>();
 			
 			for (WikipediaRevision r: page.getRevisions()) {
 				Node revNode = graphDb.createNode(revisionLabel);
@@ -118,10 +134,23 @@ public class Neo4jManager extends AbstractActor {
 					if (parentNode == null || !parentNode.getProperty("_id").equals(parentId)) {
 						parentNode = graphDb.findNode(revisionLabel, "_id", parentId);
 					}
-					parentNode.createRelationshipTo(revNode, RelTypes.PARENT_OF);
+					if (parentNode == null) {
+						lonelyChildren.put(revNode, parentId);
+					} else 
+						parentNode.createRelationshipTo(revNode, RelTypes.PARENT_OF);
 				}
 				parentNode = revNode;
 			}
+			// another run to find the parent of lonely children (revisions that were parsed before their parent)
+			for (Node n: lonelyChildren.keySet()) {
+				parentNode = graphDb.findNode(revisionLabel, "_id", lonelyChildren.get(n));
+				if (parentNode == null) {
+					log.warning("Parent revision with id {} was not found.", lonelyChildren.get(n));
+				} else {
+					parentNode.createRelationshipTo(n, RelTypes.PARENT_OF);
+				}
+			}
+			
 		    tx.success();
 		}
 	}
