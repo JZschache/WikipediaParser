@@ -1,40 +1,26 @@
 package wikipedia;
 
-import java.io.File;
-import java.io.IOException;
-import java.util.List;
+import akka.actor.ActorRef;
+import akka.actor.ActorSystem;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
-
-
-import wikipedia.model.WikipediaPage;
-import wikipedia.model.WikipediaRevision;
 import wikipedia.mongo.MongoManager;
 import wikipedia.neo4j.Neo4jManager;
-import wikipedia.parser.PageProcessor;
 import wikipedia.parser.XMLManager;
+import wikipedia.parser.XMLManager.Load;
 
 public class Main  {
 	
     public static void main(String[] args) {
-
-    	MongoManager mongoMan = new MongoManager();
-    	Neo4jManager neo4jMan = new Neo4jManager();
     	
-        XMLManager.load(new PageProcessor() {
-            @Override
-            public void process(WikipediaPage page) {
-                // Obviously you want to do something other than just printing, 
-                // but I don't know what that is...
-                System.out.println(page);
-                neo4jMan.addWikipediaPage(page);
-//                List<WikipediaRevision> revisions = page.getRevisions();
-//                for (WikipediaRevision r : revisions) {
-//                	r.getPage().setRevisions(null);
-//                }
-//                mongoMan.addWikipediaRevisions(revisions);
-           }
-        }) ;
+    	final ActorSystem system = ActorSystem.create("wikipediaparser");
+    	
+    	final ActorRef neo4jActor = system.actorOf(Neo4jManager.props(), "Neo4jActor");
+    	final ActorRef mongoActor = system.actorOf(MongoManager.props(), "MongoActor");
+        final ActorRef xmlActor = system.actorOf(XMLManager.props(neo4jActor, mongoActor), "XMLActor");
+        
+        String urlString = "https://dumps.wikimedia.org/enwiki/20180901/enwiki-20180901-pages-meta-history5.xml-p564715p565313.bz2";
+        xmlActor.tell(new Load(urlString), ActorRef.noSender());
+        
     }
 
 }

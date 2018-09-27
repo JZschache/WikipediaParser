@@ -32,11 +32,13 @@ public class PageHandler extends DefaultHandler {
     				break;
                 }
     			case "revision": {
-    				revision = new WikipediaRevision(page);
+    				revision = new WikipediaRevision();
     				break;
     			}
     			case "contributor": {
-    				user = new WikipediaUser();
+    				if (attributes.getValue("deleted") == null) {
+    					user = new WikipediaUser();
+    				}
     				break;
     			}
     			case "title":
@@ -87,6 +89,7 @@ public class PageHandler extends DefaultHandler {
 	 			case "ip": {
 	 				if (revision != null)
 	 					revision.setContributorIp(stringBuilder.toString());
+	 				user = null;
 	 				stringBuilder = null;
 	                break;
 	 			}
@@ -115,7 +118,7 @@ public class PageHandler extends DefaultHandler {
 	                break;
 	 			}
 	 			case "contributor": {
-	 				if (revision != null && revision.getContributorIp() == null) {
+	 				if (revision != null && user != null) {
 	 					revision.setContributor(user);
 	 				}
 	 				user = null;

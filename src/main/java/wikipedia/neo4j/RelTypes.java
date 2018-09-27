@@ -4,5 +4,5 @@ import org.neo4j.graphdb.RelationshipType;
 
 public enum RelTypes implements RelationshipType
 {
-    WROTE, REVISION_OF, CHILD_OF, PARENT_OF
+    WROTE, REVISION_OF, PARENT_OF
 }
