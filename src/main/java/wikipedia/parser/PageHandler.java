@@ -4,9 +4,11 @@ import org.xml.sax.Attributes;
 import org.xml.sax.SAXException;
 import org.xml.sax.helpers.DefaultHandler;
 
+import akka.actor.ActorRef;
 import wikipedia.model.WikipediaPage;
 import wikipedia.model.WikipediaRevision;
 import wikipedia.model.WikipediaUser;
+import wikipedia.parser.XMLManager.EndDocument;
 
 public class PageHandler extends DefaultHandler {
 
@@ -15,6 +17,8 @@ public class PageHandler extends DefaultHandler {
     private WikipediaRevision revision;
     private WikipediaUser user;
     private StringBuilder stringBuilder;
+    
+    private ActorRef xmlManager;
     
     public PageHandler(PageProcessor processor) {
         this.processor = processor;
@@ -32,7 +36,7 @@ public class PageHandler extends DefaultHandler {
     				break;
                 }
     			case "revision": {
-    				revision = new WikipediaRevision();
+    				revision = new WikipediaRevision(page);
     				break;
     			}
     			case "contributor": {
@@ -65,8 +69,8 @@ public class PageHandler extends DefaultHandler {
     @Override
     public void endElement(String uri, String localName, String qName) throws SAXException {
     	if (qName.equals("page")) {
-    		if (!page.isRedirecting())
-    			processor.process(page);
+    		if (page != null)
+    			processor.endPage(page);
             page = null;
     	} else if (page != null && !page.isRedirecting()){
     		switch (qName) {
@@ -82,6 +86,7 @@ public class PageHandler extends DefaultHandler {
 	 					revision.setId(stringBuilder.toString());
 	 				} else {
 	 					page.setId(stringBuilder.toString());
+	 					processor.startPage(page);
 	 				}
 	 				stringBuilder = null;
 	                break;
@@ -125,7 +130,7 @@ public class PageHandler extends DefaultHandler {
 	 				break;
 	 			}
 	 			case "revision": {
-	 				page.addRevision(revision);
+	 				processor.process(revision);
 	 				revision = null;
 	 			}
     		}
@@ -134,7 +139,7 @@ public class PageHandler extends DefaultHandler {
     
     @Override
     public void endDocument() throws SAXException {
-    	
+    	processor.endDocument();
     }
 
 }

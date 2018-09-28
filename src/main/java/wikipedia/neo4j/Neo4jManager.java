@@ -2,6 +2,7 @@ package wikipedia.neo4j;
 
 import java.io.File;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -29,6 +30,7 @@ import wikipedia.model.WikipediaPage;
 import wikipedia.model.WikipediaRevision;
 import wikipedia.model.WikipediaUser;
 import wikipedia.parser.XMLManager.AddPage;
+import wikipedia.parser.XMLManager.AddRevisions;
 
 
 
@@ -38,14 +40,13 @@ public class Neo4jManager extends AbstractActor {
 		return Props.create(Neo4jManager.class, () -> new Neo4jManager());
 	}
 	
-//	private final LoggingAdapter log = Logging.getLogger(getContext().getSystem(), this);
 	private final LoggingAdapter log = Logging.getLogger(getContext().system(), this);
-
-	GraphDatabaseService graphDb;
 	
-	private Label pageLabel = Label.label( "Page" );
-	private Label revisionLabel = Label.label( "Revision" );
-	private Label userLabel = Label.label( "User" );
+	public GraphDatabaseService graphDb;
+	
+	public Label pageLabel = Label.label( "Page" );
+	public Label revisionLabel = Label.label( "Revision" );
+	public Label userLabel = Label.label( "User" );
 	
 	ExecutionContext ec = ExecutionContexts.global();
     Agent<Integer> neo4jCounter = Agent.create(0, ec);
@@ -55,7 +56,7 @@ public class Neo4jManager extends AbstractActor {
 		GraphDatabaseSettings.BoltConnector bolt = GraphDatabaseSettings.boltConnector( "0" );
 
 		graphDb = new GraphDatabaseFactory()
-		        .newEmbeddedDatabaseBuilder( new File("/local/hd/neo4jwikipedia") )
+		        .newEmbeddedDatabaseBuilder( new File("/local/hd/wikipedia/neo4jwikipedia") )
 		        .setConfig( bolt.type, "BOLT" )
 		        .setConfig( bolt.enabled, "true" )
 		        .setConfig( bolt.address, "localhost:7688" )
@@ -77,23 +78,22 @@ public class Neo4jManager extends AbstractActor {
 		registerShutdownHook( graphDb );
 		
 		receive(ReceiveBuilder
-				.match(AddPage.class, ap -> {
-					addWikipediaPage(ap.page);
+				.match(AddRevisions.class, ar -> {
+					addWikipediaPage(ar.page, ar.revisions);
 					neo4jCounter.send(new Mapper<Integer, Integer>() {
 	            		public Integer apply(Integer i) {
-	            			int idx = Integer.parseInt(ap.page.getId());
-	            			if (i % Main.outputFreq == 0)
-			            		log.info("Done storing page {}.", idx);
+	            			if ((i+1) % Main.outputFreq == 0)
+			            		log.info("Done storing {} pages.", (i+1));
 	            			return i + 1;
 	            		}				            		
 	            	});
 				})
 				.matchAny(o -> log.info("received unknown message"))
 				.build());
+
 	}
 	
-
-	private void addWikipediaPage(WikipediaPage page) {
+	private void addWikipediaPage(WikipediaPage page, Collection<WikipediaRevision> revisions) {
 		try ( Transaction tx = graphDb.beginTx() )
 		{
 			Node pageNode = graphDb.createNode(pageLabel);
@@ -104,7 +104,7 @@ public class Neo4jManager extends AbstractActor {
 			
 			Map<Node, String> lonelyChildren = new HashMap<Node,String>();
 			
-			for (WikipediaRevision r: page.getRevisions()) {
+			for (WikipediaRevision r: revisions) {
 				Node revNode = graphDb.createNode(revisionLabel);
 				revNode.setProperty("_id", r.getId());
 				revNode.setProperty("timestamp", r.getTimestamp());
@@ -113,7 +113,6 @@ public class Neo4jManager extends AbstractActor {
 				WikipediaUser user = r.getContributor();
 				if (user != null) {
 					Node userNode = graphDb.findNode(userLabel, "wikipedia_id", user.getId());
-//					Node userNode = idMapping.get(user.getId());
 					if (userNode == null) {
 						userNode = graphDb.createNode(userLabel);
 						try {
@@ -123,7 +122,6 @@ public class Neo4jManager extends AbstractActor {
 							e.printStackTrace();
 						}
 						userNode.setProperty("name", user.getName());
-//						idMapping.put(user.getId(), userNode);
 					}
 					userNode.createRelationshipTo( revNode, RelTypes.WROTE );
 				} else if (r.getContributorIp() != null) {
@@ -154,17 +152,6 @@ public class Neo4jManager extends AbstractActor {
 		    tx.success();
 		}
 	}
-	
-//	@Override
-//	public Receive createReceive() {
-//		return receiveBuilder()
-//			.match(AddPage.class, ap -> {
-//				addWikipediaPage(ap.page);
-//				log.info("Done storing page: {}", ap.page.getId());
-//			})
-//			.matchAny(o -> log.info("received unknown message"))
-//			.build();
-//	  }
 	
 	private static void registerShutdownHook( final GraphDatabaseService graphDb )	{
 	    // Registers a shutdown hook for the Neo4j instance so that it

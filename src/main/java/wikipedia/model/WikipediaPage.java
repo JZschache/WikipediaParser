@@ -13,16 +13,16 @@ public class WikipediaPage {
 	private String id;
 	private String title;
     private boolean isRedirecting = false;
-    private List<WikipediaRevision> revisions = new ArrayList<WikipediaRevision>();
+//    private List<WikipediaRevision> revisions = new ArrayList<WikipediaRevision>();
 
     public WikipediaPage() {
         
     }
     
-    public String toString() {
-        return "Id: " + getId() + ", Title: " + getTitle() + ", Revisions: " + revisions.size();
-    }
-    
+//    public String toString() {
+//        return "Id: " + getId() + ", Title: " + getTitle() + ", Revisions: " + revisions.size();
+//    }
+//    
     public void setRedirecting(boolean redirecting) {
     	this.isRedirecting = redirecting;
     }
@@ -47,15 +47,15 @@ public class WikipediaPage {
 		return title;
 	}
 	
-	public void addRevision(WikipediaRevision revision) {
-		revisions.add(revision);
-	}
-	
-	public List<WikipediaRevision> getRevisions(){
-		return revisions;
-	}
-
-	public void setRevisions(List<WikipediaRevision> revisions) {
-		this.revisions = revisions;
-	}
+//	public void addRevision(WikipediaRevision revision) {
+//		revisions.add(revision);
+//	}
+//	
+//	public List<WikipediaRevision> getRevisions(){
+//		return revisions;
+//	}
+//
+//	public void setRevisions(List<WikipediaRevision> revisions) {
+//		this.revisions = revisions;
+//	}
 }

@@ -57,5 +57,10 @@
     	<artifactId>akka-agent_2.11</artifactId>
     	<version>2.4.20</version>
 	</dependency>
+	<dependency>
+    <groupId>com.madgag</groupId>
+    <artifactId>util-diff</artifactId>
+    <version>1.28</version>
+</dependency>
   </dependencies>
 </project>

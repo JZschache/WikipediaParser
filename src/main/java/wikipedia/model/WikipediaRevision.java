@@ -8,10 +8,12 @@ public class WikipediaRevision {
 	private WikipediaUser contributor;
 	private String contributorIp;
 	private String text;
-//	private WikipediaPage page;
+	private String textAdded;
+	private String textRemoved;
+	private WikipediaPage page;
 	
-	public WikipediaRevision() {
-//		this.page = page;
+	public WikipediaRevision(WikipediaPage page) {
+		this.page = page;
 	}
 	public String getId() {
 		return id;
@@ -49,11 +51,23 @@ public class WikipediaRevision {
 	public void setContributorIp(String contributorIp) {
 		this.contributorIp = contributorIp;
 	}
-//	public WikipediaPage getPage() {
-//		return page;
-//	}
-//	public void setPage(WikipediaPage page) {
-//		this.page = page;
-//	}
+	public WikipediaPage getPage() {
+		return page;
+	}
+	public void setPage(WikipediaPage page) {
+		this.page = page;
+	}
+	public String getTextAdded() {
+		return textAdded;
+	}
+	public void setTextAdded(String textAdded) {
+		this.textAdded = textAdded;
+	}
+	public String getTextRemoved() {
+		return textRemoved;
+	}
+	public void setTextRemoved(String textRemoved) {
+		this.textRemoved = textRemoved;
+	}
 
 }
