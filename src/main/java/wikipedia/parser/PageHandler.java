@@ -4,11 +4,9 @@ import org.xml.sax.Attributes;
 import org.xml.sax.SAXException;
 import org.xml.sax.helpers.DefaultHandler;
 
-import akka.actor.ActorRef;
 import wikipedia.model.WikipediaPage;
 import wikipedia.model.WikipediaRevision;
 import wikipedia.model.WikipediaUser;
-import wikipedia.parser.XMLManager.EndDocument;
 
 public class PageHandler extends DefaultHandler {
 
@@ -17,9 +15,7 @@ public class PageHandler extends DefaultHandler {
     private WikipediaRevision revision;
     private WikipediaUser user;
     private StringBuilder stringBuilder;
-    
-    private ActorRef xmlManager;
-    
+ 
     public PageHandler(PageProcessor processor) {
         this.processor = processor;
     }
@@ -69,7 +65,7 @@ public class PageHandler extends DefaultHandler {
     @Override
     public void endElement(String uri, String localName, String qName) throws SAXException {
     	if (qName.equals("page")) {
-    		if (page != null)
+    		if (page != null && !page.isRedirecting())
     			processor.endPage(page);
             page = null;
     	} else if (page != null && !page.isRedirecting()){
