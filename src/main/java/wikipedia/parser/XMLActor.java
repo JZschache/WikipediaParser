@@ -200,5 +200,9 @@ public class XMLActor extends AbstractActor {
 		log.error(reason, "Restarting due to [{}] when processing [{}]",
 				reason.getMessage(), message.isPresent() ? message.get() : "");
 	}
+	
+	public void postStop() {
+		log.debug("Stopping");
+	}
         
 }

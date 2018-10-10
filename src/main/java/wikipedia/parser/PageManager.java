@@ -1,10 +1,12 @@
 package wikipedia.parser;
 
-import java.util.ArrayList;
-import java.util.LinkedHashMap;
+import java.text.DateFormat;
+import java.text.ParseException;
+import java.text.SimpleDateFormat;
+import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.LinkedList;
-import java.util.List;
-import java.util.Map;
+import java.util.Locale;
 
 import akka.actor.ActorContext;
 import akka.actor.ActorRef;
@@ -26,74 +28,87 @@ import wikipedia.parser.XMLActor.AddRevisions;
  */
 public class PageManager {
 	
-	private Map<String, WikipediaRevision> revisions = new LinkedHashMap<String, WikipediaRevision>();
-	private List<WikipediaRevision> lonelyChildren = new ArrayList<WikipediaRevision>();
+	private DateFormat df = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss'Z'", Locale.ENGLISH);
+	
+	private LinkedList<WikipediaRevision> revisions = new LinkedList<WikipediaRevision>();
+//	private List<WikipediaRevision> lonelyChildren = new ArrayList<WikipediaRevision>();
 	
 	private LoggingAdapter log;
 	
 	private ActorRef neo4jActor;
 	private ActorRef mongoActor;
-		
+	
+	private String currentUser;	
+	private WikipediaRevision currentUserRevision;
+	
 	public PageManager(ActorRef neo4jActor, ActorRef mongoActor, ActorContext context) {
 		this.neo4jActor = neo4jActor;
 		this.mongoActor = mongoActor;
-		lonelyChildren = new ArrayList<WikipediaRevision>();
 		
 		log = Logging.getLogger(context.system(), this);
 		
 	}
 	public void addRevision(WikipediaRevision revision) {
-		revisions.put(revision.getId(), revision);
-		setDiff(revision, lonelyChildren);
+		
+		if (currentUser == null || 
+				(revision.getContributorIp() == null && revision.getContributor() == null) ||
+				(revision.getContributorIp() == null && !currentUser.equals(revision.getContributor().getId())) ||
+			    (revision.getContributor() == null && !currentUser.equals(revision.getContributorIp()))) {
+			
+			addCurrentUserRevision();
+			
+			// change currentUser
+			if (revision.getContributor() != null)
+				currentUser = revision.getContributor().getId();
+			else 
+				currentUser = revision.getContributorIp();
+			
+		}
+		currentUserRevision = revision;
+		 
 	}
 	
 	public void addPage(WikipediaPage page) {
-		// another run to find the parent of lonely children (revisions that were parsed before their parent)
-		int counter = 0;
-		while(!lonelyChildren.isEmpty() && counter < 10) {
-			counter ++;
-			lonelyChildren = findParent(lonelyChildren);
-		}
+		
+		addCurrentUserRevision();
+		currentUserRevision.setText(null);
 				
-		// removing text to reduce memory/storage
-		for (WikipediaRevision revision : revisions.values()) {
-			if (revision.getParentId() != null)
-				revision.setText(null);
-		}
-		
 		if (!revisions.isEmpty()) {
-			neo4jActor.tell(new AddRevisions(page, revisions.values()), ActorRef.noSender());			
-			mongoActor.tell(new AddRevisions(page, revisions.values()), ActorRef.noSender());
-		}
-	}
-		
-	private void setDiff(WikipediaRevision revision, List<WikipediaRevision> lonelyChildren) {
-		String parentId = revision.getParentId();
-		if (parentId != null) {
-			WikipediaRevision parent = revisions.get(parentId);
-			if (parent != null) {
-				diff_match_patch dmp = new diff_match_patch(new StandardBreakScorer() );
-			    LinkedList<diff_match_patch.Diff> diff = dmp.diff_main(parent.getText(), revision.getText());
-			    dmp.diff_cleanupSemantic(diff);
-			    for (diff_match_patch.Diff d : diff) {
-			    	if (d.operation.equals(Operation.INSERT))
-			    		revision.setTextAdded(d.text);
-			    	if (d.operation.equals(Operation.DELETE))
-			    		revision.setTextRemoved(d.text);
-			    }
-			} else {
-				log.warning("Parent revision with id {} was not found.", revision.getParentId());
-				lonelyChildren.add(revision);
-			}
+			neo4jActor.tell(new AddRevisions(page, revisions), ActorRef.noSender());			
+			mongoActor.tell(new AddRevisions(page, revisions), ActorRef.noSender());
 		}
 	}
 	
-	private List<WikipediaRevision> findParent(List<WikipediaRevision> lonelyChildren){
-		List<WikipediaRevision> remainingLonelyChildren = new ArrayList<WikipediaRevision>();
-		for (WikipediaRevision revision : lonelyChildren) {
-			setDiff(revision, remainingLonelyChildren);
+	private void addCurrentUserRevision() {
+		
+		if (currentUserRevision != null) {
+			
+			if (!revisions.isEmpty()) {
+				WikipediaRevision previousRevision = revisions.getLast();
+				// overwrite parentId
+				currentUserRevision.setParentId(previousRevision.getId());
+				// set diff
+				diff_match_patch dmp = new diff_match_patch(new StandardBreakScorer() );
+				LinkedList<diff_match_patch.Diff> diff = dmp.diff_main(previousRevision.getText(), currentUserRevision.getText());
+				dmp.diff_cleanupSemantic(diff);
+				for (diff_match_patch.Diff d : diff) {
+				  	if (d.operation.equals(Operation.INSERT))
+				  		currentUserRevision.setTextAdded(d.text);
+				   	if (d.operation.equals(Operation.DELETE))
+				   		currentUserRevision.setTextRemoved(d.text);
+				}
+				//clear text to save memory/storage
+				if (previousRevision.getParentId() != null)
+					previousRevision.setText(null);
+				LocalDateTime currentTime = LocalDateTime.parse(currentUserRevision.getTimestamp(), DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm:ss'Z'"));
+				LocalDateTime previousTime = LocalDateTime.parse(previousRevision.getTimestamp(), DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm:ss'Z'"));
+				if (currentTime.isBefore(previousTime))
+					log.warning("Current revision {} was before previous revision {}.", currentUserRevision.getId(), previousRevision.getId());
+			} else { // currentUserRevision is first revision of page
+				currentUserRevision.setParentId(null);
+			}
+			revisions.add(currentUserRevision);
 		}
-		return remainingLonelyChildren;
 	}
        
 }

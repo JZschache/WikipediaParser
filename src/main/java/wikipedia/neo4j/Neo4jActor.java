@@ -4,6 +4,7 @@ import java.io.File;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Optional;
 
 import org.neo4j.graphdb.GraphDatabaseService;
 import org.neo4j.graphdb.Label;
@@ -110,9 +111,7 @@ public class Neo4jActor extends AbstractActor {
 	  }
 	
 	private void addWikipediaPage(WikipediaPage page, Collection<WikipediaRevision> revisions) {
-		try ( Transaction tx = graphDb.beginTx() )
-		{
-			
+		try ( Transaction tx = graphDb.beginTx() ) {
 			Node pageNode = graphDb.findNode(pageLabel, "_id", page.getId());
 			if (pageNode == null) {
 				pageNode = graphDb.createNode(pageLabel);
@@ -120,8 +119,6 @@ public class Neo4jActor extends AbstractActor {
 				pageNode.setProperty("title", page.getTitle());
 			
 				Node parentNode = null;
-				
-				Map<Node, String> lonelyChildren = new HashMap<Node,String>();
 				
 				for (WikipediaRevision r: revisions) {
 					Node revNode = graphDb.createNode(revisionLabel);
@@ -152,37 +149,17 @@ public class Neo4jActor extends AbstractActor {
 							parentNode = graphDb.findNode(revisionLabel, "_id", parentId);
 						}
 						if (parentNode == null) {
-							lonelyChildren.put(revNode, parentId);
+							log.warning("Parent revision with id {} was not found.", parentId);
 						} else 
 							parentNode.createRelationshipTo(revNode, RelTypes.PARENT_OF);
 					}
-					// normally the xml-file shows the revisions ordered by timestamp
+					// normally the PageManager sends the revisions in the right order
 					parentNode = revNode;
-				}
-				// another run to find the parent of lonely children (revisions that were parsed before their parent)
-				int counter = 0;
-				while (!lonelyChildren.isEmpty() && counter < 10) {
-					counter++;
-					lonelyChildren = findParent(lonelyChildren);
 				}
 			}
 				
 		    tx.success();
 		}
-	}
-	
-	private Map<Node, String> findParent(Map<Node, String> lonelyChildren){
-		Map<Node, String> remainingLonelyChildren = new HashMap<Node,String>();
-		for (Node n: lonelyChildren.keySet()) {
-			Node parentNode = graphDb.findNode(revisionLabel, "_id", lonelyChildren.get(n));
-			if (parentNode == null) {
-				log.warning("Parent revision with id {} was not found.", lonelyChildren.get(n));
-				remainingLonelyChildren.put(n, lonelyChildren.get(n));
-			} else {
-				parentNode.createRelationshipTo(n, RelTypes.PARENT_OF);
-			}
-		}
-		return remainingLonelyChildren;
 	}
 	
 	private static void registerShutdownHook( final GraphDatabaseService graphDb )	{
@@ -198,5 +175,19 @@ public class Neo4jActor extends AbstractActor {
 	        }
 	    } );
  	}
+	
+	@Override
+	public void preStart() {
+		log.debug("Starting");
+	}
+	@Override
+	public void preRestart(Throwable reason, Optional<Object> message) {
+		log.error(reason, "Restarting due to [{}] when processing [{}]",
+				reason.getMessage(), message.isPresent() ? message.get() : "");
+	}
+	
+	public void postStop() {
+		log.debug("Stopping");
+	}
 	
 }

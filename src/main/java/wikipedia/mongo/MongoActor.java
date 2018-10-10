@@ -7,6 +7,7 @@ import java.io.PrintWriter;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
+import java.util.Optional;
 
 import org.bson.Document;
 import org.neo4j.graphdb.GraphDatabaseService;
@@ -130,4 +131,17 @@ public class MongoActor extends AbstractActor {
 	    } );
  	}
 		
+	@Override
+	public void preStart() {
+		log.debug("Starting");
+	}
+	@Override
+	public void preRestart(Throwable reason, Optional<Object> message) {
+		log.error(reason, "Restarting due to [{}] when processing [{}]",
+				reason.getMessage(), message.isPresent() ? message.get() : "");
+	}
+	
+	public void postStop() {
+		log.debug("Stopping");
+	}
 }

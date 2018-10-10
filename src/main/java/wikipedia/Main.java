@@ -49,14 +49,13 @@ public class Main  {
 			InputStream stream = new URL(indexUrl + indexPath).openStream();
 			BufferedReader reader = new BufferedReader(new InputStreamReader(stream));
 			String line;
-//			boolean nothingFound = true;
 	        while ((line = reader.readLine()) != null) {
 	        	if (line.contains("pages-meta-history")) {
 	        		String[] splits = line.split("\"");
 	        		for (String s : splits) {
-	        			if (s.contains("pages-meta-history18") && s.endsWith(".bz2")) {
+	        			// done: 18
+	        			if (s.contains("pages-meta-history10.") && s.endsWith(".bz2")) {
 	        				downloadActor.tell(new LoadURL(indexUrl + s), ActorRef.noSender());
-//	        				nothingFound = false;
 	        			}
 	        		}
 	        		
