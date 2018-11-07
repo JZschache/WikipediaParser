@@ -14,8 +14,8 @@ import akka.event.LoggingAdapter;
 
 public class DownloadActor extends AbstractActor {
 	
-	static public Props props(ActorRef xmlManager) {
-		return Props.create(DownloadActor.class, () -> new DownloadActor(xmlManager));
+	static public Props props(ActorRef xmlManager, String path) {
+		return Props.create(DownloadActor.class, () -> new DownloadActor(xmlManager, path));
 	}
 	
 	// START: messages
@@ -39,19 +39,20 @@ public class DownloadActor extends AbstractActor {
 
 	
 	private final LoggingAdapter log = Logging.getLogger(getContext().system(), this);
-	public final String filepath = "/local/hd/wikipedia/original/";
+	String path;
 	
 	private ActorRef xmlManager;
 	
-	public DownloadActor(ActorRef xmlManager) {
+	public DownloadActor(ActorRef xmlManager, String path) {
 		this.xmlManager = xmlManager;
+		this.path = path + "/original/";
 	}
 	
 	@Override
 	public Receive createReceive() {
 		return receiveBuilder()
 				.match(LoadURL.class, load -> {
-					String fileName = filepath + load.urlString.split("/")[5];
+					String fileName = path + load.urlString.split("/")[5];
 					File f = new File(fileName);
 					if(!f.exists()) { 
 						f.getParentFile().mkdirs(); 

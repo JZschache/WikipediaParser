@@ -1,6 +1,7 @@
 package wikipedia.mongo;
 
 import java.io.BufferedWriter;
+import java.io.File;
 import java.io.FileWriter;
 import java.io.IOException;
 import java.io.PrintWriter;
@@ -21,8 +22,8 @@ import wikipedia.parser.XMLActor.NewFile;
 
 public class JsonActor extends AbstractActor {
 	
-	static public Props props() {
-		return Props.create(JsonActor.class, () -> new JsonActor());
+	static public Props props(String path) {
+		return Props.create(JsonActor.class, () -> new JsonActor(path));
 	}
 	
 	private final LoggingAdapter log = Logging.getLogger(getContext().system(), this);
@@ -32,9 +33,10 @@ public class JsonActor extends AbstractActor {
     int mongoCounter = 0;
 	
     PrintWriter out;
+    String path;
 	
-	public JsonActor() {
-		
+	public JsonActor(String path) {
+		this.path = path;
 	}
 	
 	@Override
@@ -54,7 +56,13 @@ public class JsonActor extends AbstractActor {
 						String[] splits = nf.filename.split("/")[5].split("-");
 						String last = splits[4];
 						String filename = splits[0] + "-" + splits[1] + "-" + last.substring(0, last.length() - 4);  
-						out = new PrintWriter(new BufferedWriter(new FileWriter("/local/hd/wikipedia/json/" + filename + ".json", true)));
+												
+						File f = new File(path + "/json/" + filename + ".json");
+						if(!f.exists()) { 
+							f.getParentFile().mkdirs();
+						}
+						
+						out = new PrintWriter(new BufferedWriter(new FileWriter(f, true)));
 						registerShutdownHook(out);
 					} catch (IOException e) {
 						e.printStackTrace();

@@ -42,11 +42,16 @@ public class Neo4jActor extends AbstractActor {
 	int neo4jCounter = 0;
 	
 	public Neo4jActor(String path) {
+		
+		File f = new File(path + "/neo4j");
+		if(!f.exists()) { 
+			f.mkdirs();
+		}
 
 		BoltConnector bolt = new BoltConnector();
 
 		graphDb = new GraphDatabaseFactory()
-		        .newEmbeddedDatabaseBuilder( new File(path) )
+		        .newEmbeddedDatabaseBuilder(f)
 		        .setConfig( bolt.type, "BOLT" )
 		        .setConfig( bolt.enabled, "true" )
 		        .setConfig( bolt.listen_address, "localhost:7688" )

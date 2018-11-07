@@ -30,6 +30,7 @@ import wikipedia.DownloadActor.LoadFile;
 
 /**
  * using: https://stackoverflow.com/questions/26310595/how-to-parse-big-50-gb-xml-files-in-java
+ * 
  * @author zschache
  *
  */
