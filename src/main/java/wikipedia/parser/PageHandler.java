@@ -1,5 +1,7 @@
 package wikipedia.parser;
 
+import java.util.List;
+
 import org.xml.sax.Attributes;
 import org.xml.sax.SAXException;
 import org.xml.sax.helpers.DefaultHandler;
@@ -8,6 +10,13 @@ import wikipedia.model.WikipediaPage;
 import wikipedia.model.WikipediaRevision;
 import wikipedia.model.WikipediaUser;
 
+/**
+ * 
+ * The handler for the SAX-Parser.
+ * 
+ * @author zschache
+ *
+ */
 public class PageHandler extends DefaultHandler {
 
     private final PageProcessor processor;
@@ -15,9 +24,15 @@ public class PageHandler extends DefaultHandler {
     private WikipediaRevision revision;
     private WikipediaUser user;
     private StringBuilder stringBuilder;
- 
-    public PageHandler(PageProcessor processor) {
+    
+    private List<String> skippedPages;
+    private boolean checkSkippedPages = false;
+    
+    public PageHandler(List<String> skippedPages, PageProcessor processor) {
         this.processor = processor;
+        // check skipped pages only if it was not empty at initialization
+        this.checkSkippedPages = !skippedPages.isEmpty();
+        this.skippedPages = skippedPages;
     }
 
     @Override
@@ -64,12 +79,12 @@ public class PageHandler extends DefaultHandler {
 
     @Override
     public void endElement(String uri, String localName, String qName) throws SAXException {
-    	if (qName.equals("page")) {
-    		if (page != null && !page.isRedirecting())
-    			processor.endPage(page);
-            page = null;
-    	} else if (page != null && !page.isRedirecting()){
+    	if (page != null && !page.isRedirecting()){
     		switch (qName) {
+	    		case "page": {
+	    			processor.endPage(page);
+	    			break;
+	    		}
  				case "title": {
  					page.setTitle(stringBuilder.toString());
  					stringBuilder = null;
@@ -82,7 +97,17 @@ public class PageHandler extends DefaultHandler {
 	 					revision.setId(stringBuilder.toString());
 	 				} else {
 	 					page.setId(stringBuilder.toString());
-	 					processor.startPage(page);
+	 					if (checkSkippedPages) {
+	 						// check if page was skipped before
+	 						if (skippedPages.contains(page.getId())) {
+	 							skippedPages.remove(page.getId());
+	 							processor.startPage(page, true);
+	 						} else { 
+	 							page = null;
+	 						}
+	 					} else { // normal processing
+	 						processor.startPage(page, false);
+	 					}
 	 				}
 	 				stringBuilder = null;
 	                break;

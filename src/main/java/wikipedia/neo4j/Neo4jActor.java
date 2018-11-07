@@ -2,8 +2,6 @@ package wikipedia.neo4j;
 
 import java.io.File;
 import java.util.Collection;
-import java.util.HashMap;
-import java.util.Map;
 import java.util.Optional;
 
 import org.neo4j.graphdb.GraphDatabaseService;
@@ -63,7 +61,7 @@ public class Neo4jActor extends AbstractActor {
 		    boolean needsPageLabelIndex = true;
 		    for (IndexDefinition id : schema.getIndexes()) {
 		    	for (String propertyKey : id.getPropertyKeys()) {
-		    		if (id.getLabel().equals(userLabel) && propertyKey.equals("wikipedia_id")) {
+		    		if (id.getLabel().equals(userLabel) && propertyKey.equals("_id")) {
 		    			needsUserLabelIndex = false;
 		    		} 
 		    		if (id.getLabel().equals(revisionLabel) && propertyKey.equals("_id")) {
@@ -76,7 +74,7 @@ public class Neo4jActor extends AbstractActor {
 		    }
 		    if (needsUserLabelIndex) {
 		    	schema.indexFor( userLabel )
-				    	.on( "wikipedia_id" )
+				    	.on( "_id" )
 				    	.create();
 		    }
 		    if (needsRevisionLabelIndex) {
@@ -128,11 +126,11 @@ public class Neo4jActor extends AbstractActor {
 					
 					WikipediaUser user = r.getContributor();
 					if (user != null) {
-						Node userNode = graphDb.findNode(userLabel, "wikipedia_id", user.getId());
+						Node userNode = graphDb.findNode(userLabel, "_id", user.getId());
 						if (userNode == null) {
 							userNode = graphDb.createNode(userLabel);
 							try {
-								userNode.setProperty("wikipedia_id", user.getId());
+								userNode.setProperty("_id", user.getId());
 							} catch (Exception e) {
 								System.out.println(r.getId());
 								e.printStackTrace();

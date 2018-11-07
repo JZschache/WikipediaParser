@@ -5,7 +5,9 @@ import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.util.ArrayDeque;
+import java.util.ArrayList;
 import java.util.Collection;
+import java.util.List;
 import java.util.Optional;
 import java.util.Queue;
 
@@ -24,7 +26,7 @@ import akka.event.LoggingAdapter;
 import wikipedia.Main;
 import wikipedia.model.WikipediaPage;
 import wikipedia.model.WikipediaRevision;
-
+import wikipedia.DownloadActor.LoadFile;
 
 /**
  * using: https://stackoverflow.com/questions/26310595/how-to-parse-big-50-gb-xml-files-in-java
@@ -36,43 +38,18 @@ public class XMLActor extends AbstractActor {
 	static public Props props(ActorRef neo4jActor, ActorRef mongoActor, int lastPageId) {
 		return Props.create(XMLActor.class, () -> new XMLActor(neo4jActor, mongoActor, lastPageId));
 	}
-	
-	static public class LoadURL {
-		public final String urlString;
-
-	    public LoadURL(String urlString) {
-	        this.urlString = urlString;
-	    }
-	}
-	
-	static public class LoadFile {
-		public final String fileName;
-
-	    public LoadFile(String fileName) {
-	        this.fileName = fileName;
-	    }
-	}
+		
+	// START: messages
 	
 	static public class ParseNextFile {
 		
-	    public ParseNextFile() {
-	    }
-	}
+		public final String fileString;
 		
-	
-	static public class AddRevision {
-	    public final WikipediaRevision revision;
-
-	    public AddRevision(WikipediaRevision revision) {
-	        this.revision = revision;
+	    public ParseNextFile() {
+	    	this.fileString = null;
 	    }
-	}
-
-	static public class AddPage {
-	    public final WikipediaPage page;
-
-	    public AddPage(WikipediaPage page) {
-	        this.page = page;
+	    public ParseNextFile(String fileString) {
+	    	this.fileString = fileString;
 	    }
 	}
 	
@@ -93,9 +70,8 @@ public class XMLActor extends AbstractActor {
 	        this.filename = filename;
 	    }
 	}
-	static public class EndDocument {
-	    
-	}
+
+	// END: messages
 	
 	private final LoggingAdapter log = Logging.getLogger(getContext().system(), this);
 	private final SAXParserFactory factory = SAXParserFactory.newInstance();
@@ -108,6 +84,10 @@ public class XMLActor extends AbstractActor {
     
     ActorRef mongoActor;
     ActorRef neo4jActor;
+    
+    // this list stores pages that have been skipped during parsing
+    // a page is skipped if the revisions are out of order
+    private List<String> skippedPages = new ArrayList<String>();
     
 	public XMLActor(ActorRef neo4jActor, ActorRef mongoActor, int lastPageId) {
 		this.mongoActor = mongoActor;
@@ -127,7 +107,11 @@ public class XMLActor extends AbstractActor {
 						
 				})
 				.match(ParseNextFile.class, load -> {
-					String fileString = fileStrings.poll();
+					String fileString = load.fileString;
+					if (fileString == null) { //not parsing the same file again
+						fileString = fileStrings.poll();
+					}
+					final String fileStringFinal = fileString;
 					if (fileString != null) {
 						String[] splits = fileString.split("p");
 						String lastPageString = splits[splits.length-1];
@@ -139,14 +123,13 @@ public class XMLActor extends AbstractActor {
 							InputStream stream;
 							try {
 					        	SAXParser parser = factory.newSAXParser();
-	//							stream = new URL(urlString).openStream();
 								stream = new FileInputStream(new File(fileString));
 								BZip2CompressorInputStream bzip2 = new BZip2CompressorInputStream(stream);
-								PageHandler pageHandler = new PageHandler(new PageProcessor() {
+								PageHandler pageHandler = new PageHandler(skippedPages, new PageProcessor() {
 									PageManager pageManger;
 									@Override
-						            public void startPage(WikipediaPage page) {
-										pageManger = new PageManager(neo4jActor, mongoActor, getContext());
+						            public void startPage(WikipediaPage page, boolean orderByDate) {
+										pageManger = new PageManager(neo4jActor, mongoActor, getContext(), skippedPages, orderByDate);
 									}
 						            @Override
 						            public void process(WikipediaRevision revision) {
@@ -159,6 +142,8 @@ public class XMLActor extends AbstractActor {
 						            	xmlCounter++;
 										if (xmlCounter % Main.outputFreq == 0) {
 											log.info("Done parsing {} pages. Current page id: {}.", xmlCounter, page.getId());
+											if (!skippedPages.isEmpty())
+												log.warning("Skipped {} pages due to disorder.", skippedPages.size());
 						            	}
 						            }
 						            @Override
@@ -166,10 +151,14 @@ public class XMLActor extends AbstractActor {
 						            	try {
 											bzip2.close();
 										} catch (IOException e) {
-											// TODO Auto-generated catch block
 											e.printStackTrace();
 										}
-						            	self().tell(new ParseNextFile(), self());
+						            	if (skippedPages.isEmpty())
+						            		self().tell(new ParseNextFile(), self());
+						            	else {
+						            		log.info("Starting another parsing of pages {} until {} from: {}", firstPage, lastPage, fileStringFinal);
+						            		self().tell(new ParseNextFile(fileStringFinal), self());
+						            	}
 						            }
 						        });
 								parser.parse(bzip2, pageHandler);
