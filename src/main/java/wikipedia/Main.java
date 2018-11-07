@@ -25,21 +25,21 @@ public class Main  {
     	
 
         Config regularConfig = ConfigFactory.load();
-        
-        
+                
     	String path = regularConfig.getString("wikipedia.path");
     	String indexUrl = regularConfig.getString("wikipedia.indexUrl");
         String indexPath = regularConfig.getString("wikipedia.indexPath");
         String filePrefix = regularConfig.getString("wikipedia.filePrefix");
         int lastPageId = regularConfig.getInt("wikipedia.lastPageId");
+        boolean writeToHdfs = regularConfig.getBoolean("wikipedia.writeToHdfs");
         
     	final ActorSystem system = ActorSystem.create("wikipediaparser");
     	final LoggingAdapter log = Logging.getLogger(system.eventStream(), "Main");
 
-    	final ActorRef mongoActor = system.actorOf(JsonActor.props(path), "MongoActor");
+    	final ActorRef mongoActor = system.actorOf(JsonActor.props(path), "JsonActor");
     	final ActorRef neo4jActor = system.actorOf(Neo4jActor.props(path), "Neo4jActor");
         final ActorRef xmlActor = system.actorOf(XMLActor.props(neo4jActor, mongoActor, lastPageId), "XMLActor");
-        final ActorRef downloadActor = system.actorOf(DownloadActor.props(xmlActor, path), "DownloadActor");
+        final ActorRef downloadActor = system.actorOf(DownloadActor.props(xmlActor, path, writeToHdfs), "DownloadActor");
         
         log.info("Reading index from: {}", indexUrl + indexPath);
 		try {
