@@ -6,10 +6,6 @@ import java.io.InputStream;
 import java.io.OutputStream;
 import java.net.URL;
 
-import org.apache.hadoop.conf.Configuration;
-import org.apache.hadoop.fs.FileSystem;
-import org.apache.hadoop.fs.Path;
-
 import akka.actor.AbstractActor;
 import akka.actor.ActorRef;
 import akka.actor.Props;
@@ -18,8 +14,8 @@ import akka.event.LoggingAdapter;
 
 public class DownloadActor extends AbstractActor {
 	
-	static public Props props(ActorRef xmlManager, String path, boolean writeToHdfs) {
-		return Props.create(DownloadActor.class, () -> new DownloadActor(xmlManager, path, writeToHdfs));
+	static public Props props(ActorRef xmlManager, String path) {
+		return Props.create(DownloadActor.class, () -> new DownloadActor(xmlManager, path));
 	}
 	
 	// START: messages
@@ -44,14 +40,12 @@ public class DownloadActor extends AbstractActor {
 	
 	private final LoggingAdapter log = Logging.getLogger(getContext().system(), this);
 	private String path;
-	private boolean writeToHdfs;
 	
 	private ActorRef xmlManager;
 	
-	public DownloadActor(ActorRef xmlManager, String path, boolean writeToHdfs) {
+	public DownloadActor(ActorRef xmlManager, String path) {
 		this.xmlManager = xmlManager;
 		this.path = path + "/original/";
-		this.writeToHdfs = writeToHdfs;
 	}
 	
 	@Override
@@ -60,30 +54,21 @@ public class DownloadActor extends AbstractActor {
 				.match(LoadURL.class, load -> {
 					String fileName = path + load.urlString.split("/")[5];
 					OutputStream outStream;
-				    if (writeToHdfs) {
-				    	Configuration conf = new Configuration();
-				    	
-				    	System.out.println("Connecting to -- "+conf.get("fs.defaultFS"));
-				    	
-				    	FileSystem fs = FileSystem.get(conf);
-				    	Path p = new Path(fileName);
-				    	outStream = fs.create(p);	
-				    } else {
-				    	File f = new File(fileName);
-				    	if(!f.exists()) {  
-				    		f.getParentFile().mkdirs();
-				    		f.createNewFile();
-				    	}
+				    File f = new File(fileName);
+			    	if(!f.exists()) {  
+			    		f.getParentFile().mkdirs();
+			    		f.createNewFile();
+			    	
 					    outStream = new FileOutputStream(f);
-				    }
-				    InputStream inStream = new URL(load.urlString).openStream();
-				    byte[] buffer = new byte[8 * 1024];
-					int bytesRead;
-					while ((bytesRead = inStream.read(buffer)) != -1) {
-						outStream.write(buffer, 0, bytesRead);
-					}
-					outStream.close();
-					inStream.close();
+					    InputStream inStream = new URL(load.urlString).openStream();
+					    byte[] buffer = new byte[8 * 1024];
+						int bytesRead;
+						while ((bytesRead = inStream.read(buffer)) != -1) {
+							outStream.write(buffer, 0, bytesRead);
+						}
+						outStream.close();
+						inStream.close();
+			    	}
 					    
 					xmlManager.tell(new LoadFile(fileName), self());
 				})

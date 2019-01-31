@@ -121,8 +121,13 @@ public class PageManager {
 					diff_match_patch dmp = new diff_match_patch(new StandardBreakScorer() );
 					LinkedList<diff_match_patch.Diff> diff = dmp.diff_main(previousRevision.getText(), currentUserRevision.getText());
 					dmp.diff_cleanupSemantic(diff);
+				
+					LinkedList<diff_match_patch.Patch> patch = dmp.patch_make(previousRevision.getText(), diff);
+					
+					currentUserRevision.addTextAdded(dmp.patch_toText(patch));
+					
 					for (diff_match_patch.Diff d : diff) {
-					  	if (d.operation.equals(Operation.INSERT))
+						if (d.operation.equals(Operation.INSERT))
 					  		currentUserRevision.addTextAdded(d.text);
 					   	if (d.operation.equals(Operation.DELETE))
 					   		currentUserRevision.addTextRemoved(d.text);

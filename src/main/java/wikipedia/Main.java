@@ -12,14 +12,14 @@ import akka.actor.ActorRef;
 import akka.actor.ActorSystem;
 import akka.event.Logging;
 import akka.event.LoggingAdapter;
-import wikipedia.mongo.JsonActor;
 import wikipedia.neo4j.Neo4jActor;
 import wikipedia.parser.XMLActor;
 import wikipedia.DownloadActor.LoadURL;
+import wikipedia.json.JsonActor;
 
 public class Main  {
 	
-	public final static int outputFreq = 1000;
+	public final static int outputFreq = 1000000;
 	
     public static void main(String[] args) {
     	
@@ -31,7 +31,6 @@ public class Main  {
         String indexPath = regularConfig.getString("wikipedia.indexPath");
         String filePrefix = regularConfig.getString("wikipedia.filePrefix");
         int lastPageId = regularConfig.getInt("wikipedia.lastPageId");
-        boolean writeToHdfs = regularConfig.getBoolean("wikipedia.writeToHdfs");
         
     	final ActorSystem system = ActorSystem.create("wikipediaparser");
     	final LoggingAdapter log = Logging.getLogger(system.eventStream(), "Main");
@@ -39,7 +38,7 @@ public class Main  {
     	final ActorRef mongoActor = system.actorOf(JsonActor.props(path), "JsonActor");
     	final ActorRef neo4jActor = system.actorOf(Neo4jActor.props(path), "Neo4jActor");
         final ActorRef xmlActor = system.actorOf(XMLActor.props(neo4jActor, mongoActor, lastPageId), "XMLActor");
-        final ActorRef downloadActor = system.actorOf(DownloadActor.props(xmlActor, path, writeToHdfs), "DownloadActor");
+        final ActorRef downloadActor = system.actorOf(DownloadActor.props(xmlActor, path), "DownloadActor");
         
         log.info("Reading index from: {}", indexUrl + indexPath);
 		try {

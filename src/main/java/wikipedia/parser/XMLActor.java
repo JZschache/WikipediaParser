@@ -36,8 +36,8 @@ import wikipedia.DownloadActor.LoadFile;
  */
 public class XMLActor extends AbstractActor {
 	
-	static public Props props(ActorRef neo4jActor, ActorRef mongoActor, int lastPageId) {
-		return Props.create(XMLActor.class, () -> new XMLActor(neo4jActor, mongoActor, lastPageId));
+	static public Props props(ActorRef neo4jActor, ActorRef jsonActor, int lastPageId) {
+		return Props.create(XMLActor.class, () -> new XMLActor(neo4jActor, jsonActor, lastPageId));
 	}
 		
 	// START: messages
@@ -83,15 +83,15 @@ public class XMLActor extends AbstractActor {
 	boolean waitingForFirstFile = true;
     private Queue<String> fileStrings = new ArrayDeque<String>();
     
-    ActorRef mongoActor;
+    ActorRef jsonActor;
     ActorRef neo4jActor;
     
     // this list stores pages that have been skipped during parsing
     // a page is skipped if the revisions are out of order
     private List<String> skippedPages = new ArrayList<String>();
     
-	public XMLActor(ActorRef neo4jActor, ActorRef mongoActor, int lastPageId) {
-		this.mongoActor = mongoActor;
+	public XMLActor(ActorRef neo4jActor, ActorRef jsonActor, int lastPageId) {
+		this.jsonActor = jsonActor;
 		this.neo4jActor = neo4jActor;
 		this.lastPageId = lastPageId;
 	}
@@ -120,7 +120,7 @@ public class XMLActor extends AbstractActor {
 						int firstPage = Integer.parseInt(splits[splits.length-2]);
 						if (lastPage > lastPageId) {
 							log.info("Start loading pages {} until {} from: {}", firstPage, lastPage, fileString);
-							mongoActor.tell(new NewFile(fileString), self());
+							jsonActor.tell(new NewFile(fileString), self());
 							InputStream stream;
 							try {
 					        	SAXParser parser = factory.newSAXParser();
@@ -130,7 +130,7 @@ public class XMLActor extends AbstractActor {
 									PageManager pageManger;
 									@Override
 						            public void startPage(WikipediaPage page, boolean orderByDate) {
-										pageManger = new PageManager(neo4jActor, mongoActor, getContext(), skippedPages, orderByDate);
+										pageManger = new PageManager(neo4jActor, jsonActor, getContext(), skippedPages, orderByDate);
 									}
 						            @Override
 						            public void process(WikipediaRevision revision) {
@@ -172,7 +172,7 @@ public class XMLActor extends AbstractActor {
 							self().tell(new ParseNextFile(), self());
 						}
 					} else { // queue of fileStrings is empty
-						mongoActor.tell(akka.actor.PoisonPill.getInstance(), ActorRef.noSender());
+						jsonActor.tell(akka.actor.PoisonPill.getInstance(), ActorRef.noSender());
 						neo4jActor.tell(akka.actor.PoisonPill.getInstance(), ActorRef.noSender());
 						getContext().stop(getSelf());
 					}

@@ -1,4 +1,4 @@
-package wikipedia.mongo;
+package wikipedia.json;
 
 import java.io.BufferedWriter;
 import java.io.File;
