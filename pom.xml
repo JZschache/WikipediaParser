@@ -94,6 +94,7 @@
                             <manifestEntries>
                                 <Main-Class>wikipedia.Main</Main-Class>
                                 <Class-Path>.</Class-Path>
+-
                             </manifestEntries>
                         </transformer>
                         <transformer implementation="org.apache.maven.plugins.shade.resource.ServicesResourceTransformer"/>

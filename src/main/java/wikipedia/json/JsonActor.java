@@ -15,7 +15,6 @@ import akka.actor.AbstractActor;
 import akka.actor.Props;
 import akka.event.Logging;
 import akka.event.LoggingAdapter;
-import wikipedia.Main;
 import wikipedia.model.WikipediaRevision;
 import wikipedia.parser.XMLActor.AddRevisions;
 import wikipedia.parser.XMLActor.NewFile;
@@ -30,7 +29,7 @@ public class JsonActor extends AbstractActor {
 
 	ObjectMapper mapper = new ObjectMapper();
 
-    int mongoCounter = 0;
+    int jsonCounter = 0;
 	
     PrintWriter out;
     String path;
@@ -44,10 +43,10 @@ public class JsonActor extends AbstractActor {
 		return receiveBuilder()
 	    		.match(AddRevisions.class, ap -> {
 					addWikipediaRevisions(ap.revisions);
-					mongoCounter++;
-					if (mongoCounter % Main.outputFreq == 0) {
-						log.info("Done storing {} pages. Current page id: {}.", mongoCounter, ap.page.getId());
-	            	}
+//					jsonCounter++;
+//					if (jsonCounter % Main.outputFreq == 0) {
+//						log.info("Done storing {} pages. Current page id: {}.", jsonCounter, ap.page.getId());
+//	            	}
 				})
 				.match(NewFile.class, nf -> {
 					if (out != null)

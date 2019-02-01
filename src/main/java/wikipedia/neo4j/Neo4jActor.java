@@ -17,7 +17,6 @@ import akka.actor.AbstractActor;
 import akka.actor.Props;
 import akka.event.Logging;
 import akka.event.LoggingAdapter;
-import wikipedia.Main;
 import wikipedia.model.WikipediaPage;
 import wikipedia.model.WikipediaRevision;
 import wikipedia.model.WikipediaUser;
@@ -39,7 +38,7 @@ public class Neo4jActor extends AbstractActor {
 	public Label revisionLabel = Label.label( "Revision" );
 	public Label userLabel = Label.label( "User" );
 	
-	int neo4jCounter = 0;
+//	int neo4jCounter = 0;
 	
 	public Neo4jActor(String path) {
 		
@@ -104,10 +103,10 @@ public class Neo4jActor extends AbstractActor {
 	    return receiveBuilder()
 	    		.match(AddRevisions.class, ar -> {
 					addWikipediaPage(ar.page, ar.revisions);
-					neo4jCounter++;
-					if (neo4jCounter % Main.outputFreq == 0) {
-						log.info("Done storing {} pages. Current page id: {}.", neo4jCounter, ar.page.getId());
-	            	}				            		
+//					neo4jCounter++;
+//					if (neo4jCounter % Main.outputFreq == 0) {
+//						log.info("Done storing {} pages. Current page id: {}.", neo4jCounter, ar.page.getId());
+//	            	}				            		
 				})
 				.matchAny(o -> log.info("received unknown message"))
 				.build();

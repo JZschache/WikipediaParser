@@ -23,7 +23,6 @@ import akka.actor.Props;
 import akka.actor.ActorRef;
 import akka.event.Logging;
 import akka.event.LoggingAdapter;
-import wikipedia.Main;
 import wikipedia.model.WikipediaPage;
 import wikipedia.model.WikipediaRevision;
 import wikipedia.DownloadActor.LoadFile;
@@ -77,7 +76,7 @@ public class XMLActor extends AbstractActor {
 	private final LoggingAdapter log = Logging.getLogger(getContext().system(), this);
 	private final SAXParserFactory factory = SAXParserFactory.newInstance();
 	
-	int xmlCounter = 0;
+//	int xmlCounter = 0;
 	int lastPageId;
 	
 	boolean waitingForFirstFile = true;
@@ -140,12 +139,12 @@ public class XMLActor extends AbstractActor {
 						            public void endPage(WikipediaPage page) {
 						            	if (Integer.parseInt(page.getId()) > lastPageId)
 						            		pageManger.addPage(page);
-						            	xmlCounter++;
-										if (xmlCounter % Main.outputFreq == 0) {
-											log.info("Done parsing {} pages. Current page id: {}.", xmlCounter, page.getId());
-											if (!skippedPages.isEmpty())
-												log.warning("Skipped {} pages due to disorder.", skippedPages.size());
-						            	}
+//						            	xmlCounter++;
+//										if (xmlCounter % Main.outputFreq == 0) {
+//											log.info("Done parsing {} pages. Current page id: {}.", xmlCounter, page.getId());
+//											if (!skippedPages.isEmpty())
+//												log.warning("Skipped {} pages due to disorder.", skippedPages.size());
+//						            	}
 						            }
 						            @Override
 						            public void endDocument () {

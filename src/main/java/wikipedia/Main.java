@@ -19,12 +19,11 @@ import wikipedia.json.JsonActor;
 
 public class Main  {
 	
-	public final static int outputFreq = 1000000;
+//	public final static int outputFreq = 1000000;
 	
     public static void main(String[] args) {
     	
-
-        Config regularConfig = ConfigFactory.load();
+    	Config regularConfig = ConfigFactory.load();
                 
     	String path = regularConfig.getString("wikipedia.path");
     	String indexUrl = regularConfig.getString("wikipedia.indexUrl");

@@ -2,9 +2,6 @@ package wikipedia.model;
 
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
-import java.util.ArrayList;
-import java.util.List;
-
 import com.fasterxml.jackson.annotation.JsonIgnore;
 
 public class WikipediaRevision implements Comparable<WikipediaRevision>{
@@ -16,14 +13,11 @@ public class WikipediaRevision implements Comparable<WikipediaRevision>{
 	private WikipediaUser contributor;
 	private String contributorIp;
 	private String text;
-	private List<String> textAdded;
-	private List<String> textRemoved;
+	private String patch;
 	private WikipediaPage page;
 	
 	public WikipediaRevision(WikipediaPage page) {
 		this.page = page;
-		textAdded = new ArrayList<String>();
-		textRemoved = new ArrayList<String>();
 	}
 	public String getId() {
 		return id;
@@ -72,19 +66,12 @@ public class WikipediaRevision implements Comparable<WikipediaRevision>{
 	public void setPage(WikipediaPage page) {
 		this.page = page;
 	}
-	public List<String> getTextAdded() {
-		return textAdded;
+	public String getPatch() {
+		return patch;
 	}
-	public void addTextAdded(String textAdded) {
-		this.textAdded.add(textAdded);
+	public void setPatch(String patch) {
+		this.patch = patch;
 	}
-	public List<String> getTextRemoved() {
-		return textRemoved;
-	}
-	public void addTextRemoved(String textRemoved) {
-		this.textRemoved.add(textRemoved);
-	}
-	
 	@Override
 	public int compareTo(WikipediaRevision o) {
 		if (timestampDate == null || o.getTimestampDate() == null)
