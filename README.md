@@ -23,11 +23,11 @@ In [application.conf](src/main/resources/application.conf), the following parame
 - filePrefix: part of the file name that specifies the kind of dump (e.g. all pages with complete page edit history)
 - lastPageId: used to skip the first pages including page with this Id
 
-The logging can be configured in [logback.xml](src/main/resources/logback.xml). See also [online documentation](https://logback.qos.ch/manual/configuration.html).
+The logging can be configured in [logback.XML](src/main/resources/logback.xml). See also [online documentation](https://logback.qos.ch/manual/configuration.html).
 
 ## Data
 
-At wikipedia.path, for directories are created.
+At wikipedia.path, four directories are created.
 
 1. log: logging files
 2. original
@@ -42,9 +42,9 @@ At wikipedia.path, for directories are created.
     
 ### Format of JSON data
 
-WikipediaParser parses through the xml-files and extracts the history of the articles. A Wikipedia page consists of multiple revisions by different authors. The WikipediaParser collects all revisions by the same author until another author submits a revision. Only the last revision is kept and the difference to the previous revision (by another author) is calculated.
+WikipediaParser parses through the XML files of the Wikipedia dump and extracts the changes between two versions of an article. A Wikipedia page consists of multiple revisions by different authors. The WikipediaParser collects all revisions by the same author until another author submits a revision. Only the last revision is kept and the difference to the previous revision (by another author) is calculated.
 
-An example of the article "Talk:Atlas Shrugged":
+An example of the article "Talk:Atlas Shrugged" in JSON format:
 
 ```
 {
@@ -56,7 +56,7 @@ An example of the article "Talk:Atlas Shrugged":
 		"name":"TimShell"
 	},
 	"contributorIp":null,
-	"text":"I am developing the AtlasShrugged section of Wikipedia as a test to push the envelope of what is possible with a wiki. [...],
+	"text":"I am developing the AtlasShrugged section of Wikipedia as a test to push [...],
 	"patch":null,
 	"page":{
 		"id":"128",
@@ -82,11 +82,11 @@ An example of the article "Talk:Atlas Shrugged":
 }
 ```
 
-The first version of a page has no parentId, and the attribute "text" contains the full article. Later entries that refer to the same page link to the previous version by the parentId. Changes are given as patch: see [diff-match-patch](https://github.com/google/diff-match-patch). Differences to the Unidiff format: [Unidiff](https://github.com/google/diff-match-patch/wiki/Unidiff).
+The first version of a page has no parentId, and the attribute "text" contains the full article. Later entries that refer to the same page link to the previous version by the parentId. Changes are given as patch: see [diff-match-patch](https://github.com/google/diff-match-patch).
 
-Usually, the revision are ordered chronologically in the xml file. This speeds up the parsing. But sometimes, the revisions are out of order. In case of the latter, the Wikipedia page is skipped and another parsing of the same xml file is started after completing the current one. During the second parsing, revisions of the skipped pages are collected and ordered by date before aggregation by author and calculating the differences. This approach should be avoided in general because it requires a large amount of memory (saving all revisions of a page in full text).
+Usually, the revision are ordered chronologically in the XML file. This speeds up the parsing. But sometimes, the revisions are out of order. In this case, the Wikipedia page is skipped and another parsing of the same XML file is started after completing the current one. During the second parsing, revisions of the skipped pages are collected and ordered by date before aggregation by author and calculating the differences. This approach should be avoided in general because it requires a large amount of memory (saving all revisions of a page in full text).
  
-The original parentId as given in the xml file is not reliable and, therefore, overwritten.
+The original parentId as given in the XML file is not reliable and, therefore, overwritten.
 
 ### Format of Neo4j data
 
