@@ -1,17 +1,20 @@
 package wikipedia;
 
+import com.typesafe.config.Config;
+import com.typesafe.config.ConfigFactory;
 import akka.actor.ActorSystem;
 
 import wikipedia.neo4j.Neo4jActor;
 
 public class StartNeo4j  {
 	
-	public final static int outputFreq = 1000;
-	
     public static void main(String[] args) {
     	
-    	final ActorSystem system = ActorSystem.create("wikipediaparser");
-    	system.actorOf(Neo4jActor.props("/local/hd/wikipedia/neo4j"), "Neo4jActor");
+    	Config regularConfig = ConfigFactory.load();
+        String path = regularConfig.getString("wikipedia.path");
+    	
+        final ActorSystem system = ActorSystem.create("Neo4jStandalone");
+    	system.actorOf(Neo4jActor.props(path), "Neo4jActor");
 
     }
         

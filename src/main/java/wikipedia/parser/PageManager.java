@@ -9,7 +9,6 @@ import akka.actor.ActorContext;
 import akka.actor.ActorRef;
 import name.fraser.neil.plaintext.StandardBreakScorer;
 import name.fraser.neil.plaintext.diff_match_patch;
-import name.fraser.neil.plaintext.diff_match_patch.Operation;
 import wikipedia.model.WikipediaPage;
 import wikipedia.model.WikipediaRevision;
 import wikipedia.parser.XMLActor.AddRevisions;

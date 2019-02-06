@@ -57,21 +57,20 @@
     	<version>2.5.17</version>
 	</dependency>
 	<dependency>
-    <groupId>com.madgag</groupId>
-    <artifactId>util-diff</artifactId>
-    <version>1.28</version>
-</dependency>
-<dependency>
-  <groupId>com.typesafe.akka</groupId>
-  <artifactId>akka-slf4j_2.11</artifactId>
-  <version>2.5.17</version>
-</dependency>
-<dependency>
-  <groupId>ch.qos.logback</groupId>
-  <artifactId>logback-classic</artifactId>
-  <version>1.2.3</version>
-</dependency>
-
+    	<groupId>com.madgag</groupId>
+    	<artifactId>util-diff</artifactId>
+    	<version>1.28</version>
+	</dependency>
+	<dependency>
+  		<groupId>com.typesafe.akka</groupId>
+  		<artifactId>akka-slf4j_2.11</artifactId>
+  		<version>2.5.17</version>
+	</dependency>
+	<dependency>
+	  	<groupId>ch.qos.logback</groupId>
+	  	<artifactId>logback-classic</artifactId>
+	  	<version>1.2.3</version>
+	</dependency>
   </dependencies>
   <build>
   	<plugins>

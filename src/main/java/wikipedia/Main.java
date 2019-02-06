@@ -31,6 +31,8 @@ public class Main  {
         String filePrefix = regularConfig.getString("wikipedia.filePrefix");
         int lastPageId = regularConfig.getInt("wikipedia.lastPageId");
         
+        System.setProperty("wikipedia.path", path);
+        
     	final ActorSystem system = ActorSystem.create("wikipediaparser");
     	final LoggingAdapter log = Logging.getLogger(system.eventStream(), "Main");
 
