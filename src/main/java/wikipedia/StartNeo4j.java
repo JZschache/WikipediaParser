@@ -13,6 +13,8 @@ public class StartNeo4j  {
     	Config regularConfig = ConfigFactory.load();
         String path = regularConfig.getString("wikipedia.path");
     	
+        System.setProperty("wikipedia.path", path);
+        
         final ActorSystem system = ActorSystem.create("Neo4jStandalone");
     	system.actorOf(Neo4jActor.props(path), "Neo4jActor");
 

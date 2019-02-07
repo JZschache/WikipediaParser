@@ -1,12 +1,14 @@
 package wikipedia.parser;
 
-import java.util.ArrayList;
-import java.util.Collections;
+import java.time.LocalDateTime;
+import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
 
 import akka.actor.ActorContext;
 import akka.actor.ActorRef;
+import akka.event.Logging;
+import akka.event.LoggingAdapter;
 import name.fraser.neil.plaintext.StandardBreakScorer;
 import name.fraser.neil.plaintext.diff_match_patch;
 import wikipedia.model.WikipediaPage;
@@ -34,103 +36,171 @@ public class PageManager {
 	
 //	private DateFormat df = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss'Z'", Locale.ENGLISH);
 	
+	private final LoggingAdapter log;
+	
 	private LinkedList<WikipediaRevision> revisions = new LinkedList<WikipediaRevision>();
-	private List<WikipediaRevision> orderedRevisions = new ArrayList<WikipediaRevision>();
-		
+	private LinkedList<WikipediaRevision> forkedRevisions = new LinkedList<WikipediaRevision>();
+	private LocalDateTime forkedDateTime;
+			
 	private ActorRef neo4jActor;
 	private ActorRef mongoActor;
 	
 	private String currentUser;	
 	private WikipediaRevision currentUserRevision;
 	
-	private List<String> skippedPages;
+	private diff_match_patch dmp = new diff_match_patch(new StandardBreakScorer() );
 	
-	private boolean skipPage = false;
-	private boolean orderedByDate = false;
-	
-	public PageManager(ActorRef neo4jActor, ActorRef mongoActor, ActorContext context, List<String> skippedPages, boolean orderedByDate) {
+	public PageManager(ActorRef neo4jActor, ActorRef mongoActor, ActorContext context) {
 		this.neo4jActor = neo4jActor;
 		this.mongoActor = mongoActor;
-		
-		this.skippedPages = skippedPages;
-		this.orderedByDate = orderedByDate;
-		
+		log = Logging.getLogger(context.system(), this);
 	}
 	public void addRevision(WikipediaRevision revision) {
-		if (orderedByDate) {
-			orderedRevisions.add(revision);
-		} else if (!skipPage) {
-			if (currentUser == null || 
-					(revision.getContributorIp() == null && revision.getContributor() == null) ||
-					(revision.getContributorIp() == null && !currentUser.equals(revision.getContributor().getId())) ||
-				    (revision.getContributor() == null && !currentUser.equals(revision.getContributorIp()))) {
+					
+		// check for new user
+		if (currentUser == null || 
+				(revision.getContributorIp() == null && revision.getContributor() == null) ||
+				(revision.getContributorIp() == null && !currentUser.equals(revision.getContributor().getId())) ||
+			    (revision.getContributor() == null && !currentUser.equals(revision.getContributorIp()))) {
+			
+			addCurrentUserRevision();
 				
-				addCurrentUserRevision();
-				
-				// change currentUser
-				if (revision.getContributor() != null)
-					currentUser = revision.getContributor().getId();
-				else 
-					currentUser = revision.getContributorIp();
-				
-			}
-			currentUserRevision = revision;
+			// change currentUser
+			if (revision.getContributor() != null)
+				currentUser = revision.getContributor().getId();
+			else 
+				currentUser = revision.getContributorIp();
+							
 		}
+		if (currentUserRevision == null || currentUserRevision.getTimestampDate().isBefore(revision.getTimestampDate()))
+			currentUserRevision = revision; 
+		
 	}
 	
 	public void addPage(WikipediaPage page) {
-		if (orderedByDate) {
-			Collections.sort(orderedRevisions);
-			orderedByDate = false;
-			for (WikipediaRevision rev : orderedRevisions) {
-				addRevision(rev);
-			}			
+		
+		addCurrentUserRevision();
+		
+		if (forkedDateTime != null && forkedDateTime.isBefore(currentUserRevision.getTimestampDate())) {
+			appendForkedRevisions();
 		}
 		
-		if (!skipPage) {
-			addCurrentUserRevision();
-			currentUserRevision.setText(null);
-		
-			if (!skipPage) {
-				Collections.sort(revisions);
-			
-				if (!revisions.isEmpty()) {
-					neo4jActor.tell(new AddRevisions(page, revisions), ActorRef.noSender());			
-					mongoActor.tell(new AddRevisions(page, revisions), ActorRef.noSender());
-				}
+		// check integrity
+		String text = revisions.getFirst().getText();
+		for (WikipediaRevision r : revisions) {
+			if (r.getPatch() != null) {
+				text = applyPatch(text, r.getPatch());
 			}
+		}
+		if (!revisions.getLast().getText().equals(text)) {
+			log.warning("patches do not add up to the final version of page " + revisions.getLast().getPage().getId() + " : " + text);
+		}
+				
+		if (!revisions.isEmpty()) {
+			revisions.getLast().setText(null);
+			neo4jActor.tell(new AddRevisions(page, revisions), ActorRef.noSender());			
+			mongoActor.tell(new AddRevisions(page, revisions), ActorRef.noSender());
 		}
 	}
 	
 	private void addCurrentUserRevision() {
 		
-		if (currentUserRevision != null) {
+		if (currentUserRevision != null) { // addRevision was called at least once
+			
+			if (forkedDateTime != null && forkedDateTime.isBefore(currentUserRevision.getTimestampDate())) {
+				appendForkedRevisions();
+			}
 			
 			if (!revisions.isEmpty()) {
+				
 				WikipediaRevision previousRevision = revisions.getLast();
 				
+				// check whether current revision was written before the last revision
 				if (currentUserRevision.getTimestampDate().isBefore(previousRevision.getTimestampDate())) {
-					skipPage = true;
-					skippedPages.add(currentUserRevision.getPage().getId());
+					
+					// if there is a pending fork, resolve it first
+					if (forkedDateTime != null && forkedDateTime.isBefore(currentUserRevision.getTimestampDate())) {
+						appendForkedRevisions();
+					}
+					
+					// find last revision that is before current revision
+					Iterator<WikipediaRevision> revRev = revisions.descendingIterator();
+					WikipediaRevision lastRevision = revRev.next();
+					int index = revisions.size() - 2;
+					while(revRev.hasNext()) {
+						lastRevision = revRev.next();
+						if (currentUserRevision.getTimestampDate().isAfter(lastRevision.getTimestampDate())) {
+							break;
+						} else {
+							index--;
+						}
+					}
+					// split revisions into two parts
+					if (index > -1) {
+						List<WikipediaRevision> sub = revisions.subList(index, revisions.size());
+						forkedRevisions = new LinkedList<WikipediaRevision>(sub);
+						sub.clear();
+						
+						// calculate text of last revision
+						
+						String text = revisions.getFirst().getText();
+						for (WikipediaRevision r : revisions) {
+							if (r.getPatch() != null) {
+								text = applyPatch(text, r.getPatch());
+							}
+						}
+						revisions.getLast().setText(text);
+						// calculate text of first forked revision
+						WikipediaRevision ffr = forkedRevisions.getFirst();
+						ffr.setText(applyPatch(text, ffr.getPatch()));
+						ffr.setPatch(null);
+					} else { // currentRevision is before all previous revisions
+						forkedRevisions = new LinkedList<WikipediaRevision>(revisions);
+						revisions = new LinkedList<WikipediaRevision>();
+					}
+					forkedDateTime = forkedRevisions.getFirst().getTimestampDate();
 				}
-				else {				
+				
+				if (!revisions.isEmpty()) {
+					previousRevision = revisions.getLast();
 					// overwrite parentId
 					currentUserRevision.setParentId(previousRevision.getId());
 					// set diff/create patches
-					diff_match_patch dmp = new diff_match_patch(new StandardBreakScorer() );
 					LinkedList<diff_match_patch.Patch> patches = dmp.patch_make(previousRevision.getText(), currentUserRevision.getText());
 					currentUserRevision.setPatch(dmp.patch_toText(patches));
 					
 					//clear text to save memory/storage
 					if (previousRevision.getParentId() != null)
 						previousRevision.setText(null);
+				} else { // currentUserRevision is first revision of page
+					currentUserRevision.setParentId(null);
 				}
-				
-			} else { // currentUserRevision is first revision of page
-				currentUserRevision.setParentId(null);
+				revisions.add(currentUserRevision);
 			}
-			revisions.add(currentUserRevision);
 		}
 	}
+	
+	private String applyPatch(String text, String patch) {
+		Object[] result = dmp.patch_apply(new LinkedList<diff_match_patch.Patch>(dmp.patch_fromText(patch)), text);
+		return (String)result[0];
+	}
+	
+	private void appendForkedRevisions() {
+		WikipediaRevision previousRevision = revisions.getLast();
+		WikipediaRevision forkedRevision = forkedRevisions.getFirst();
+		// overwrite parentId
+		forkedRevision.setParentId(previousRevision.getId());
+		// set diff/create patches
+		LinkedList<diff_match_patch.Patch> patches = dmp.patch_make(previousRevision.getText(), forkedRevision.getText());
+		forkedRevision.setPatch(dmp.patch_toText(patches));
+		
+		//clear text to save memory/storage
+		if (previousRevision.getParentId() != null)
+			previousRevision.setText(null);
+		
+		revisions.addAll(forkedRevisions);
+		forkedDateTime = null;
+	}
+	
        
 }

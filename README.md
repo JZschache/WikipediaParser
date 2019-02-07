@@ -1,6 +1,6 @@
 # Wikipedia Parser
 
-A Java-Application that parses the whole history of changes on Wikipedia and builds a JSON-DB. The JSON files are much smaller than the original dump because they contain only the changes that have been made to a page on Wikipedia and not the complete text of each version of a page. 
+A Java-Application that parses the whole history of changes on Wikipedia and builds a JSON-DB. The JSON files are much smaller than the original dump because they contain only the changes that have been made to a page on Wikipedia and not the complete text of each version of a page. For instance, while the whole uncompressed data of history1 (pages 10-30303) of the dump is larger than 1 TB, the respective JSON file measures only ?? GB. 
 
 Additionally a Neo4j-DB is filled with relational data. 
 
