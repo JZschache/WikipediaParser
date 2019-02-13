@@ -129,7 +129,7 @@ public class XMLActor extends AbstractActor {
 									PageManager pageManger;
 									@Override
 						            public void startPage(WikipediaPage page, boolean orderByDate) {
-										pageManger = new PageManager(neo4jActor, jsonActor, getContext(), skippedPages, orderByDate);
+										pageManger = new PageManager(neo4jActor, jsonActor, getContext());
 									}
 						            @Override
 						            public void process(WikipediaRevision revision) {
