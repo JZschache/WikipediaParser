@@ -1,8 +1,8 @@
 # Wikipedia Parser
 
-A Java-Application that parses the whole history of changes on Wikipedia and builds a JSON-DB. The JSON files are much smaller than the original dump because they contain only the changes that have been made to a page on Wikipedia and not the complete text of each version of a page. For instance, while the whole uncompressed data of history1 (pages 10-30303) of the dump is larger than 1 TB, the respective JSON file measures only ?? GB. 
+A Java-Application that parses the whole history of changes on Wikipedia and builds a JSON-DB. The JSON files are much smaller than the original dump because they contain only the changes that have been made to a page on Wikipedia and not the complete text of each version of a page. For instance, while the uncompressed data of the first part of history1 (pages 10-2065) is 73 GB, the respective JSON file measures only 4.3 GB (6%). This size is approximately the same as the original data in bz2-compression (4.1 GB in case of pages 10-2065). 
 
-Additionally a Neo4j-DB is filled with relational data. 
+Additionally a Neo4j-DB is filled with relational data (appr. 0.02% of uncompressed data). 
 
 This application uses the [akka actor library](https://akka.io/). 
 
@@ -44,48 +44,49 @@ At wikipedia.path, four directories are created.
 
 WikipediaParser parses through the XML files of the Wikipedia dump and extracts the changes between two versions of an article. A Wikipedia page consists of multiple revisions by different authors. The WikipediaParser collects all revisions by the same author until another author submits a revision. Only the last revision is kept and the difference to the previous revision (by another author) is calculated.
 
-An example of the article "Talk:Atlas Shrugged" in JSON format:
+An example of the article "Anarchism" in JSON format:
 
 ```
 {
-	"id":"233328",
+	"id":"233194",
 	"parentId":null,
-	"timestamp":"2001-01-30T20:51:36Z",
+	"timestamp":"2001-10-11T20:18:47Z",
 	"contributor":{
-		"id":"4938",
-		"name":"TimShell"
+		"id":"31",
+		"name":"The Cunctator"
 	},
 	"contributorIp":null,
-	"text":"I am developing the AtlasShrugged section of Wikipedia as a test to push [...],
+	"text":"''Anarchism'' is the political theory [...]",
 	"patch":null,
 	"page":{
-		"id":"128",
-		"title":"Talk:Atlas Shrugged",
+		"id":"12",
+		"title":"Anarchism",
 		"redirecting":false
 	}
 }
 {
-	"id":"677884",
-	"parentId":"233328",
-	"timestamp":"2002-02-25T15:43:11Z",
+	"id":"233195",
+	"parentId":"233194",
+	"timestamp":"2001-11-28T13:32:25Z",
 	"contributor":{
-		"id":"0",
-		"name":"Conversion script"},
+		"id":"157",
+		"name":"Ffaker"
+	},
 	"contributorIp":null,
 	"text":null,
-	"patch":"@@ -344,18 +344,16 @@\n edias.%0A%0A\n-%0A%0A\n I chose \n@@ -902,9 +902,128 @@\n ection.[...]",
+	"patch":"@@ -2832,24 +2832,26 @@\n d order.%0A%0A%0A%0A\n+%0A%0A\n Anarcho-capi\n@@ -7666,24 +7666,102 @@\n rchism [...]",
 	"page":{
-		"id":"128",
-		"title":"Talk:Atlas Shrugged",
+		"id":"12",
+		"title":"Anarchism",
 		"redirecting":false
 	}
 }
 ```
 
-The first version of a page has no parentId, and the attribute "text" contains the full article. Later entries that refer to the same page link to the previous version by the parentId. Changes are given as patch: see [diff-match-patch](https://github.com/google/diff-match-patch).
+The first version of a page has no parentId, and the attribute "text" contains the full article. Later entries that refer to the same page link to the previous version by the parentId. Changes are given as patch: see [diff-match-patch](https://github.com/google/diff-match-patch). For a faster comparison of different versions, the diff algorithms operates not on the level of characters but only on the level of lines (as found by `\n`): for the difference, see [Line-or-Word-Diffs](https://github.com/google/diff-match-patch/wiki/Line-or-Word-Diffs)
 
-Usually, the revision are ordered chronologically in the XML file. This speeds up the parsing. But sometimes, the revisions are out of order. In this case, the Wikipedia page is skipped and another parsing of the same XML file is started after completing the current one. During the second parsing, revisions of the skipped pages are collected and ordered by date before aggregation by author and calculating the differences. This approach should be avoided in general because it requires a large amount of memory (saving all revisions of a page in full text).
- 
+The revisions are ordered chronologically in the JSON file.
+
 The original parentId as given in the XML file is not reliable and, therefore, overwritten.
 
 ### Format of Neo4j data
