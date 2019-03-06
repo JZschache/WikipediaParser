@@ -177,28 +177,41 @@ public class PageManager {
 			if (!revisions.isEmpty()) {
 								
 				WikipediaRevision previousRevision = revisions.getLast();
-				// overwrite parentId
-				currentUserRevision.setParentId(previousRevision.getId());
-			    
-				// calculate diff and patch
-				LinesToCharsResult a = diff_linesToChars(previousRevision.getText(), currentUserRevision.getText());
-				String lineText1 = a.chars1;
-				String lineText2 = a.chars2;
-				List<String> lineArray = a.lineArray;
-				LinkedList<Diff> diffs = dmp.diff_main(lineText1, lineText2, false);
-				diff_charsToLines(diffs, lineArray);
-								
-			    if (diffs.size() > 2) {
-			    	dmp.diff_cleanupSemantic(diffs);
-			    	dmp.diff_cleanupEfficiency(diffs);
-			    }
+				
+				LinkedList<Diff> diffs = getDiffs(previousRevision);
+				LinkedList<diff_match_patch.Patch> patches;		    
+			    try {
+					patches = dmp.patch_make(previousRevision.getText(), diffs);
+					
+				} catch (StringIndexOutOfBoundsException e) {
+					// occurred at a large reverse of "Spanish Armada" (15:54, 26 November 2006‎) 
+					// skip previous revision
+					log.error("StringIndexOutOfBoundsException: " + currentUserRevision.getPage().getTitle() + "; current revision: " + currentUserRevision.getTimestamp());
+					revisions.removeLast();
+					
+					// calculate text of last revision
+					String text = revisions.getFirst().getText();
+					for (WikipediaRevision r : revisions) {
+						if (r.getPatch() != null) {
+							text = applyPatch(text, r.getPatch());
+						}
+					}
 
-			    LinkedList<diff_match_patch.Patch> patches = dmp.patch_make(previousRevision.getText(), diffs);
-				currentUserRevision.setPatch(dmp.patch_toText(patches));
+					previousRevision = revisions.getLast();
+					previousRevision.setText(text);
+					
+					diffs = getDiffs(previousRevision);
+				    patches = dmp.patch_make(previousRevision.getText(), diffs);					
+				}
+			    
+			    currentUserRevision.setPatch(dmp.patch_toText(patches));
 				
 				noChars += currentUserRevision.getText().length();
 				noCharsDiffs += currentUserRevision.getPatch().length();
-								
+				
+				// overwrite parentId
+				currentUserRevision.setParentId(previousRevision.getId());
+				
 				//clear text to save memory/storage
 				if (previousRevision.getParentId() != null)
 					previousRevision.setText(null);
@@ -208,15 +221,31 @@ public class PageManager {
 			revisions.add(currentUserRevision);
 			
 			
-			
 		}
 	}
+	
+	private LinkedList<Diff> getDiffs(WikipediaRevision previousRevision) {
+		// calculate diff and patch
+		LinesToCharsResult a = diff_linesToChars(previousRevision.getText(), currentUserRevision.getText());
+		String lineText1 = a.chars1;
+		String lineText2 = a.chars2;
+		List<String> lineArray = a.lineArray;
+		LinkedList<Diff> diffs = dmp.diff_main(lineText1, lineText2, false);
+		diff_charsToLines(diffs, lineArray);
+						
+	    if (diffs.size() > 2) {
+	    	dmp.diff_cleanupSemantic(diffs);
+	    	dmp.diff_cleanupEfficiency(diffs);
+	    }
+	    return diffs;
+	}
+	
 	
 	private String applyPatch(String text, String patch) {
 		Object[] result = dmp.patch_apply(new LinkedList<diff_match_patch.Patch>(dmp.patch_fromText(patch)), text);
 		return (String)result[0];
 	}
-	
+		
 	private void appendForkedRevisions() {
 		WikipediaRevision previousRevision = revisions.getLast();
 		WikipediaRevision forkedRevision = forkedRevisions.getFirst();
