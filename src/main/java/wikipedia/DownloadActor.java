@@ -14,8 +14,8 @@ import akka.event.LoggingAdapter;
 
 public class DownloadActor extends AbstractActor {
 	
-	static public Props props(ActorRef xmlManager, String path) {
-		return Props.create(DownloadActor.class, () -> new DownloadActor(xmlManager, path));
+	static public Props props(ActorRef xmlManager, String path, int lastPageId) {
+		return Props.create(DownloadActor.class, () -> new DownloadActor(xmlManager, path, lastPageId));
 	}
 	
 	// START: messages
@@ -40,12 +40,14 @@ public class DownloadActor extends AbstractActor {
 	
 	private final LoggingAdapter log = Logging.getLogger(getContext().system(), this);
 	private String path;
+	int lastPageId;
 	
 	private ActorRef xmlManager;
 	
-	public DownloadActor(ActorRef xmlManager, String path) {
+	public DownloadActor(ActorRef xmlManager, String path,  int lastPageId) {
 		this.xmlManager = xmlManager;
 		this.path = path + "/original/";
+		this.lastPageId = lastPageId;
 	}
 	
 	@Override
@@ -55,7 +57,12 @@ public class DownloadActor extends AbstractActor {
 					String fileName = path + load.urlString.split("/")[5];
 					OutputStream outStream;
 				    File f = new File(fileName);
-			    	if(!f.exists()) {  
+				    
+				    String[] splits = fileName.split("p");
+					String lastPageString = splits[splits.length-1];
+					int lastPage = Integer.parseInt(lastPageString.substring(0, lastPageString.length() - 4));
+					
+					if(!f.exists() && lastPage > lastPageId) {  
 			    		f.getParentFile().mkdirs();
 			    		f.createNewFile();
 			    	
