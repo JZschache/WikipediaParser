@@ -168,7 +168,8 @@ public class XMLActor extends AbstractActor {
 								
 							}
 						} else { // lastPage <= lastPageId
-							self().tell(new ParseNextFile(), self());
+							waitingForFirstFile = true;
+							//self().tell(new ParseNextFile(), self());
 						}
 					} else { // queue of fileStrings is empty
 						jsonActor.tell(akka.actor.PoisonPill.getInstance(), ActorRef.noSender());
