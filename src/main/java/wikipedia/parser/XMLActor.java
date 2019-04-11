@@ -111,6 +111,7 @@ public class XMLActor extends AbstractActor {
 					if (fileString == null) { //not parsing the same file again
 						fileString = fileStrings.poll();
 					}
+//					log.debug(fileString);
 					final String fileStringFinal = fileString;
 					if (fileString != null) {
 						String[] splits = fileString.split("p");
@@ -129,10 +130,14 @@ public class XMLActor extends AbstractActor {
 									PageManager pageManger;
 									@Override
 						            public void startPage(WikipediaPage page, boolean orderByDate) {
+//										if (Integer.parseInt(page.getId()) > lastPageId)
+//											log.info("Starting page " + page.getTitle());
 										pageManger = new PageManager(neo4jActor, jsonActor, getContext());
 									}
 						            @Override
 						            public void process(WikipediaRevision revision) {
+//						            	if (Integer.parseInt(revision.getPage().getId()) > lastPageId)
+//						            		log.info("Add revision " + revision.getTimestamp());
 						            	pageManger.addRevision(revision);
 						            }
 						            @Override
@@ -168,8 +173,10 @@ public class XMLActor extends AbstractActor {
 								
 							}
 						} else { // lastPage <= lastPageId
-							waitingForFirstFile = true;
-							//self().tell(new ParseNextFile(), self());
+							if (!fileStrings.isEmpty())
+								self().tell(new ParseNextFile(), self());
+							else
+								waitingForFirstFile = true;
 						}
 					} else { // queue of fileStrings is empty
 						jsonActor.tell(akka.actor.PoisonPill.getInstance(), ActorRef.noSender());

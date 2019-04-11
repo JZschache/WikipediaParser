@@ -32,7 +32,7 @@ At wikipedia.path, four directories are created.
 1. log: logging files
 2. original
     - downloads of Wikipedia dump: enwiki-20190101-pages-meta-history1.xml-p10p2065.bz2, ...
-    - requires sufficient storage (appr. 1 TB)
+    - requires sufficient storage (915 GB)
 3. json
     - the JSON-files: enwiki-20190101-history1.json, ...
     - requires sufficient storage (appr. ?? TB) 
@@ -85,7 +85,7 @@ An example of the article "Anarchism" in JSON format:
 
 The first version of a page has no parentId, and the attribute "text" contains the full article. Later entries that refer to the same page link to the previous version by the parentId. Changes are given as patch: see [diff-match-patch](https://github.com/google/diff-match-patch). For a faster comparison of different versions, the diff algorithms operates not on the level of characters but only on the level of lines (as found by `\n`): for the difference, see [Line-or-Word-Diffs](https://github.com/google/diff-match-patch/wiki/Line-or-Word-Diffs)
 
-The revisions are ordered chronologically in the JSON file.
+The revisions are ordered chronologically in the JSON file. The ordering is done without storing all revisions in memory since this would require memory space of at least 2 GB for the texts only.
 
 The original parentId as given in the XML file is not reliable and, therefore, overwritten.
 
