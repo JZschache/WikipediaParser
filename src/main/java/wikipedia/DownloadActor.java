@@ -76,7 +76,8 @@ public class DownloadActor extends AbstractActor {
 						outStream.close();
 						inStream.close();
 			    	}
-					    
+					
+//					log.debug(fileName);
 					xmlManager.tell(new LoadFile(fileName), self());
 				})
 				.matchAny(o -> log.info("received unknown message"))
