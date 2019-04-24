@@ -35,6 +35,11 @@ public class DownloadActor extends AbstractActor {
 	        this.fileName = fileName;
 	    }
 	}
+	
+	static public class ReadLocalFiles {
+		public ReadLocalFiles() {
+	    }
+	}
 	// END: messages
 
 	
@@ -79,6 +84,13 @@ public class DownloadActor extends AbstractActor {
 					
 //					log.debug(fileName);
 					xmlManager.tell(new LoadFile(fileName), self());
+				})
+				.match(ReadLocalFiles.class, read -> {
+					File directory = new File(path);
+					File[] paths = directory.listFiles();
+					for(File p:paths) {
+						xmlManager.tell(new LoadFile(p.getAbsolutePath()), self());
+			         }
 				})
 				.matchAny(o -> log.info("received unknown message"))
 				.build();
