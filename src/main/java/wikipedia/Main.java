@@ -15,6 +15,7 @@ import akka.event.LoggingAdapter;
 import wikipedia.neo4j.Neo4jActor;
 import wikipedia.parser.XMLActor;
 import wikipedia.DownloadActor.LoadURL;
+import wikipedia.DownloadActor.ReadLocalFiles;
 import wikipedia.json.JsonActor;
 
 public class Main  {
@@ -46,7 +47,7 @@ public class Main  {
 			InputStream stream = new URL(indexUrl + indexPath).openStream();
 			BufferedReader reader = new BufferedReader(new InputStreamReader(stream));
 			String line;
-	        while ((line = reader.readLine()) != null) {
+			while ((line = reader.readLine()) != null) {
 	        	if (line.contains(filePrefix)) {
 	        		String[] splits = line.split("\"");
 	        		for (String s : splits) {
@@ -58,6 +59,9 @@ public class Main  {
 	        	}
 	        }
 	        downloadActor.tell(akka.actor.PoisonPill.getInstance(), ActorRef.noSender());
+		} catch (java.io.FileNotFoundException fnfe) {
+			log.info("Index file {} does not exists.", indexUrl + indexPath);
+			downloadActor.tell(new ReadLocalFiles(), ActorRef.noSender());
 		} catch (Exception e) {
 			e.printStackTrace();
 		}
